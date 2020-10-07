@@ -2,6 +2,8 @@
 
 ### What does it do
 
+![Example Screenshot](assets/example.png)
+
 This action validates pull request titles. For example, it validates with the following formats:
 
 ```
