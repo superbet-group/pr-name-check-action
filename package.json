@@ -17,24 +17,18 @@
   "author": "infomiho",
   "license": "MIT",
   "dependencies": {
-    "@actions/core": "^1.2.4",
-    "@actions/github": "^2.2.0"
+    "@actions/core": "^1.2.6",
+    "@actions/github": "^4.0.0"
   },
   "devDependencies": {
-    "@types/jest": "^24.0.13",
     "@types/node": "^12.0.4",
     "@types/semver": "^6.0.0",
-    "@types/minimatch": "^3.0.0",
-    "@types/js-yaml": "^3.12.1",
-    "@vercel/ncc": "^0.23.0",
-    "jest": "^24.8.0",
-    "jest-circus": "^24.7.1",
-    "ts-jest": "^24.0.2",
-    "typescript": "^3.5.1",
     "@typescript-eslint/eslint-plugin": "4.4.0",
     "@typescript-eslint/parser": "4.4.0",
+    "@vercel/ncc": "^0.24.1",
     "eslint": "7.10.0",
     "eslint-config-prettier": "6.12.0",
-    "prettier": "2.1.2"
+    "prettier": "2.1.2",
+    "typescript": "^3.5.1"
   }
 }

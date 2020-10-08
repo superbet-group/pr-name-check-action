@@ -2,7 +2,7 @@ import * as core from "@actions/core";
 import * as github from "@actions/github";
 
 const inputs = getInputs();
-const githubClient = new github.GitHub(inputs.repoTokenInput);
+const githubClient = github.getOctokit(inputs.repoTokenInput);
 
 async function run(): Promise<void> {
   const githubContext = github.context;
