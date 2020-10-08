@@ -1,6 +1,8 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 
+const GITHUB_BOT_NAME = "github-actions[bot]";
+
 const inputs = getInputs();
 const githubClient = new github.GitHub(inputs.repoTokenInput);
 
@@ -32,7 +34,7 @@ async function run(): Promise<void> {
 
   const titleMatchesRegex: boolean = titleRegex.test(title);
   if (!titleMatchesRegex) {
-    createReview(comment, pullRequest);
+    await createReview(comment, pullRequest);
   } else {
     await dismissReview(pullRequest);
   }
@@ -59,10 +61,27 @@ function getInputs() {
   };
 }
 
-function createReview(
+async function createReview(
   comment: string,
   pullRequest: { owner: string; repo: string; number: number }
 ) {
+  const reviews = await githubClient.pulls.listReviews({
+    owner: pullRequest.owner,
+    repo: pullRequest.repo,
+    pull_number: pullRequest.number,
+  });
+
+  reviews.data.forEach((review) => {
+    if (review.user.login == GITHUB_BOT_NAME) {
+      void githubClient.pulls.deletePendingReview({
+        owner: pullRequest.owner,
+        repo: pullRequest.repo,
+        pull_number: pullRequest.number,
+        review_id: review.id,
+      });
+    }
+  });
+
   void githubClient.pulls.createReview({
     owner: pullRequest.owner,
     repo: pullRequest.repo,
@@ -84,7 +103,7 @@ async function dismissReview(pullRequest: {
   });
 
   reviews.data.forEach((review) => {
-    if (review.user.login == "github-actions[bot]") {
+    if (review.user.login == GITHUB_BOT_NAME) {
       void githubClient.pulls.dismissReview({
         owner: pullRequest.owner,
         repo: pullRequest.repo,

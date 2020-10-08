@@ -13611,6 +13611,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(__webpack_require__(186));
 const github = __importStar(__webpack_require__(438));
+const GITHUB_BOT_NAME = "github-actions[bot]";
 const inputs = getInputs();
 const githubClient = new github.GitHub(inputs.repoTokenInput);
 function run() {
@@ -13635,7 +13636,7 @@ function run() {
         core.debug(`Title: ${title}`);
         const titleMatchesRegex = titleRegex.test(title);
         if (!titleMatchesRegex) {
-            createReview(comment, pullRequest);
+            yield createReview(comment, pullRequest);
         }
         else {
             yield dismissReview(pullRequest);
@@ -13661,12 +13662,29 @@ function getInputs() {
     };
 }
 function createReview(comment, pullRequest) {
-    void githubClient.pulls.createReview({
-        owner: pullRequest.owner,
-        repo: pullRequest.repo,
-        pull_number: pullRequest.number,
-        body: comment,
-        event: "REQUEST_CHANGES",
+    return __awaiter(this, void 0, void 0, function* () {
+        const reviews = yield githubClient.pulls.listReviews({
+            owner: pullRequest.owner,
+            repo: pullRequest.repo,
+            pull_number: pullRequest.number,
+        });
+        reviews.data.forEach((review) => {
+            if (review.user.login == GITHUB_BOT_NAME) {
+                void githubClient.pulls.deletePendingReview({
+                    owner: pullRequest.owner,
+                    repo: pullRequest.repo,
+                    pull_number: pullRequest.number,
+                    review_id: review.id,
+                });
+            }
+        });
+        void githubClient.pulls.createReview({
+            owner: pullRequest.owner,
+            repo: pullRequest.repo,
+            pull_number: pullRequest.number,
+            body: comment,
+            event: "REQUEST_CHANGES",
+        });
     });
 }
 function dismissReview(pullRequest) {
@@ -13677,7 +13695,7 @@ function dismissReview(pullRequest) {
             pull_number: pullRequest.number,
         });
         reviews.data.forEach((review) => {
-            if (review.user.login == "github-actions[bot]") {
+            if (review.user.login == GITHUB_BOT_NAME) {
                 void githubClient.pulls.dismissReview({
                     owner: pullRequest.owner,
                     repo: pullRequest.repo,
