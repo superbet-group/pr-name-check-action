@@ -1,46 +1,30 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 
-const repoTokenInput = core.getInput("repo-token", { required: true });
-const githubClient = new github.GitHub(repoTokenInput);
-
-const titlePrefixes: string[] = core
-  .getInput("prefixes", {
-    required: true,
-  })
-  .split("|");
-const titleFallback: string = core.getInput("no-ticket", {
-  required: true,
-});
-const onFailedRegexCreateReviewInput: boolean =
-  core.getInput("on-failed-regex-create-review") === "true";
-const onFailedRegexCommentInput: string = core.getInput(
-  "on-failed-regex-comment"
-);
-const onTitleCorrectedCommentInput: string = core.getInput(
-  "on-title-corrected-comment"
-);
-const onFailedRegexFailActionInput: boolean =
-  core.getInput("on-failed-regex-fail-action") === "true";
-const onFailedRegexRequestChanges: boolean =
-  core.getInput("on-failed-regex-request-changes") === "true";
+const inputs = getInputs();
+const githubClient = new github.GitHub(inputs.repoTokenInput);
 
 async function run(): Promise<void> {
   const githubContext = github.context;
   const pullRequest = githubContext.issue;
 
-  const titleRegexInput = `\\[((${titlePrefixes.join(
-    "|"
-  )})\\-\\d+|${titleFallback})] .+`;
+  const joinedProjects = inputs.titleProjects.join("|");
+  // Regex for `[XX-123] text` or `[YY-123] text` or `[fallback] text`
+  const titleRegexInput = `\\[((${joinedProjects})\\-\\d+|${inputs.titleFallback})] .+`;
   const titleRegex = new RegExp(titleRegexInput);
   const title: string =
     (githubContext.payload.pull_request?.title as string) ?? "";
 
-  const comment = onFailedRegexCommentInput.replace(
+  const allowedFormats = [
+    ...inputs.titleProjects.map((project) => `${project}-123`),
+    inputs.titleFallback,
+  ];
+  const listOfFormats = allowedFormats
+    .map((input) => `1. \`[${input}] text\``)
+    .join("\n");
+  const comment = inputs.onFailedRegexComment.replace(
     "%formats%",
-    [...titlePrefixes.map((prefix) => `${prefix}-123`), titleFallback]
-      .map((input) => `1. \`[${input}] text\``)
-      .join("\n")
+    listOfFormats
   );
 
   core.debug(`Title Regex: ${titleRegex.source}`);
@@ -48,17 +32,31 @@ async function run(): Promise<void> {
 
   const titleMatchesRegex: boolean = titleRegex.test(title);
   if (!titleMatchesRegex) {
-    if (onFailedRegexCreateReviewInput) {
-      createReview(comment, pullRequest);
-    }
-    if (onFailedRegexFailActionInput) {
-      core.setFailed(comment);
-    }
+    createReview(comment, pullRequest);
   } else {
-    if (onFailedRegexCreateReviewInput) {
-      await dismissReview(pullRequest);
-    }
+    await dismissReview(pullRequest);
   }
+}
+
+function getInputs() {
+  const repoTokenInput = core.getInput("repo-token", { required: true });
+  const titleProjects: string = core.getInput("title-projects", {
+    required: true,
+  });
+  const titleFallback: string = core.getInput("title-fallback", {
+    required: true,
+  });
+  const onFailedRegexComment: string = core.getInput("on-failed-regex-comment");
+  const onTitleCorrectedComment: string = core.getInput(
+    "on-title-corrected-comment"
+  );
+  return {
+    repoTokenInput,
+    titleProjects: titleProjects.split("|"),
+    titleFallback,
+    onFailedRegexComment,
+    onTitleCorrectedComment,
+  };
 }
 
 function createReview(
@@ -70,7 +68,7 @@ function createReview(
     repo: pullRequest.repo,
     pull_number: pullRequest.number,
     body: comment,
-    event: onFailedRegexRequestChanges ? "REQUEST_CHANGES" : "COMMENT",
+    event: "REQUEST_CHANGES",
   });
 }
 
@@ -92,7 +90,7 @@ async function dismissReview(pullRequest: {
         repo: pullRequest.repo,
         pull_number: pullRequest.number,
         review_id: review.id,
-        message: onTitleCorrectedCommentInput,
+        message: inputs.onTitleCorrectedComment,
       });
     }
   });

@@ -17,7 +17,7 @@ this action will notify you.
 
 ### How it notifies you
 
-This action can fail and appear as a red cross in the pull request checks, or it can request changes with a comment.
+Github Bot will request changes with a comment. When the title is corrected it will let the merge request pass.
 
 ### How to use it
 
@@ -36,11 +36,8 @@ jobs:
     steps:
       - uses: superbet-group/pr-name-check-action@main
         with:
-          prefixes: SW|SGP
-          no-ticket: no-ticket
-          on-failed-regex-fail-action: false
-          on-failed-regex-request-changes: true
-          on-failed-regex-create-review: true
+          title-projects: SW|SGP
+          title-fallback: no-ticket
           on-failed-regex-comment:
             "Oh no! I have to insist 👮\n\nPull request title can be in one of the following formats:\n%formats%"
           on-title-corrected-comment:

@@ -13611,49 +13611,54 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(__webpack_require__(186));
 const github = __importStar(__webpack_require__(438));
-const repoTokenInput = core.getInput("repo-token", { required: true });
-const githubClient = new github.GitHub(repoTokenInput);
-const titlePrefixes = core
-    .getInput("prefixes", {
-    required: true,
-})
-    .split("|");
-const titleFallback = core.getInput("no-ticket", {
-    required: true,
-});
-const onFailedRegexCreateReviewInput = core.getInput("on-failed-regex-create-review") === "true";
-const onFailedRegexCommentInput = core.getInput("on-failed-regex-comment");
-const onTitleCorrectedCommentInput = core.getInput("on-title-corrected-comment");
-const onFailedRegexFailActionInput = core.getInput("on-failed-regex-fail-action") === "true";
-const onFailedRegexRequestChanges = core.getInput("on-failed-regex-request-changes") === "true";
+const inputs = getInputs();
+const githubClient = new github.GitHub(inputs.repoTokenInput);
 function run() {
     var _a, _b;
     return __awaiter(this, void 0, void 0, function* () {
         const githubContext = github.context;
         const pullRequest = githubContext.issue;
-        const titleRegexInput = `\\[((${titlePrefixes.join("|")})\\-\\d+|${titleFallback})] .+`;
+        const joinedProjects = inputs.titleProjects.join("|");
+        // Regex for `[XX-123] text` or `[YY-123] text` or `[fallback] text`
+        const titleRegexInput = `\\[((${joinedProjects})\\-\\d+|${inputs.titleFallback})] .+`;
         const titleRegex = new RegExp(titleRegexInput);
         const title = (_b = (_a = githubContext.payload.pull_request) === null || _a === void 0 ? void 0 : _a.title) !== null && _b !== void 0 ? _b : "";
-        const comment = onFailedRegexCommentInput.replace("%formats%", [...titlePrefixes.map((prefix) => `${prefix}-123`), titleFallback]
+        const allowedFormats = [
+            ...inputs.titleProjects.map((project) => `${project}-123`),
+            inputs.titleFallback,
+        ];
+        const listOfFormats = allowedFormats
             .map((input) => `1. \`[${input}] text\``)
-            .join("\n"));
+            .join("\n");
+        const comment = inputs.onFailedRegexComment.replace("%formats%", listOfFormats);
         core.debug(`Title Regex: ${titleRegex.source}`);
         core.debug(`Title: ${title}`);
         const titleMatchesRegex = titleRegex.test(title);
         if (!titleMatchesRegex) {
-            if (onFailedRegexCreateReviewInput) {
-                createReview(comment, pullRequest);
-            }
-            if (onFailedRegexFailActionInput) {
-                core.setFailed(comment);
-            }
+            createReview(comment, pullRequest);
         }
         else {
-            if (onFailedRegexCreateReviewInput) {
-                yield dismissReview(pullRequest);
-            }
+            yield dismissReview(pullRequest);
         }
     });
+}
+function getInputs() {
+    const repoTokenInput = core.getInput("repo-token", { required: true });
+    const titleProjects = core.getInput("title-projects", {
+        required: true,
+    });
+    const titleFallback = core.getInput("title-fallback", {
+        required: true,
+    });
+    const onFailedRegexComment = core.getInput("on-failed-regex-comment");
+    const onTitleCorrectedComment = core.getInput("on-title-corrected-comment");
+    return {
+        repoTokenInput,
+        titleProjects: titleProjects.split("|"),
+        titleFallback,
+        onFailedRegexComment,
+        onTitleCorrectedComment,
+    };
 }
 function createReview(comment, pullRequest) {
     void githubClient.pulls.createReview({
@@ -13661,7 +13666,7 @@ function createReview(comment, pullRequest) {
         repo: pullRequest.repo,
         pull_number: pullRequest.number,
         body: comment,
-        event: onFailedRegexRequestChanges ? "REQUEST_CHANGES" : "COMMENT",
+        event: "REQUEST_CHANGES",
     });
 }
 function dismissReview(pullRequest) {
@@ -13678,7 +13683,7 @@ function dismissReview(pullRequest) {
                     repo: pullRequest.repo,
                     pull_number: pullRequest.number,
                     review_id: review.id,
-                    message: onTitleCorrectedCommentInput,
+                    message: inputs.onTitleCorrectedComment,
                 });
             }
         });
