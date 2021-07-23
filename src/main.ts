@@ -72,8 +72,10 @@ async function createReview(
 ) {
   const reviews = await getReviews(pullRequest);
   if (recentlyCommented(reviews)) {
-
+    core.debug(`Recently commented!`);
+    return;
   }
+  core.debug(`Adding a new review`);
   void githubClient.pulls.createReview({
     owner: pullRequest.owner,
     repo: pullRequest.repo,
@@ -112,7 +114,12 @@ async function getReviews(pullRequest: PullRequest): Promise<PullsListReviewsRes
   return response.data;
 }
 function recentlyCommented(reviews: PullsListReviewsResponseData) {
-  reviews.forEach(review => {
+  const botReviews = reviews
+      .filter(review => review.user.login == "github-actions[bot]");
+
+  core.debug(`Bot reviews count: ${botReviews.length}`);
+
+  botReviews.forEach(review => {
     core.debug(`Found review ${review.body}`);
   });
   return false;
