@@ -78,7 +78,7 @@ function getInputs() {
 function createReview(comment, pullRequest) {
     return __awaiter(this, void 0, void 0, function* () {
         const reviews = yield getReviews(pullRequest);
-        if (recentlyCommented(reviews)) {
+        if (hasActiveReviews(reviews)) {
             core.debug(`Recently commented!`);
             return;
         }
@@ -118,12 +118,11 @@ function getReviews(pullRequest) {
         return response.data;
     });
 }
-function recentlyCommented(reviews) {
-    const botReviews = reviews.filter((review) => review.user.login == "github-actions[bot]");
-    botReviews.forEach((review) => {
-        core.debug(`Found review ${JSON.stringify(review)}`);
-    });
-    return false;
+function hasActiveReviews(reviews) {
+    const activeBotReviews = reviews
+        .filter((review) => review.user.login == "github-actions[bot]")
+        .filter((review) => review.state !== "DISMISSED");
+    return activeBotReviews.length > 0;
 }
 run().catch((error) => {
     core.setFailed(error);

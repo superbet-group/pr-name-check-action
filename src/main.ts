@@ -68,7 +68,7 @@ function getInputs() {
 
 async function createReview(comment: string, pullRequest: PullRequest) {
   const reviews = await getReviews(pullRequest);
-  if (recentlyCommented(reviews)) {
+  if (hasActiveReviews(reviews)) {
     core.debug(`Recently commented!`);
     return;
   }
@@ -112,15 +112,12 @@ async function getReviews(
   });
   return response.data;
 }
-function recentlyCommented(reviews: PullsListReviewsResponseData) {
-  const botReviews = reviews.filter(
-    (review) => review.user.login == "github-actions[bot]"
-  );
+function hasActiveReviews(reviews: PullsListReviewsResponseData) {
+  const activeBotReviews = reviews
+    .filter((review) => review.user.login == "github-actions[bot]")
+    .filter((review) => review.state !== "DISMISSED");
 
-  botReviews.forEach((review) => {
-    core.debug(`Found review ${JSON.stringify(review)}`);
-  });
-  return false;
+  return activeBotReviews.length > 0;
 }
 
 run().catch((error) => {
