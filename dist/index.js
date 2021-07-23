@@ -26,6 +26,10 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__webpack_require__(186));
 const github = __importStar(__webpack_require__(438));
+var ReviewState;
+(function (ReviewState) {
+    ReviewState["DISMISSED"] = "DISMISSED";
+})(ReviewState || (ReviewState = {}));
 const inputs = getInputs();
 const githubClient = github.getOctokit(inputs.repoTokenInput);
 function run() {
@@ -96,7 +100,8 @@ function dismissReview(pullRequest) {
     return __awaiter(this, void 0, void 0, function* () {
         const reviews = yield getReviews(pullRequest);
         reviews.forEach((review) => {
-            if (review.user.login == "github-actions[bot]") {
+            if (review.user.login == "github-actions[bot]" &&
+                review.state !== ReviewState.DISMISSED) {
                 void githubClient.pulls.dismissReview({
                     owner: pullRequest.owner,
                     repo: pullRequest.repo,
@@ -121,7 +126,7 @@ function getReviews(pullRequest) {
 function hasActiveReviews(reviews) {
     const activeBotReviews = reviews
         .filter((review) => review.user.login == "github-actions[bot]")
-        .filter((review) => review.state !== "DISMISSED");
+        .filter((review) => review.state !== ReviewState.DISMISSED);
     return activeBotReviews.length > 0;
 }
 run().catch((error) => {

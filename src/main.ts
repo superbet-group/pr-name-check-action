@@ -8,6 +8,10 @@ interface PullRequest {
   number: number;
 }
 
+enum ReviewState {
+  DISMISSED = "DISMISSED",
+}
+
 const inputs = getInputs();
 const githubClient = github.getOctokit(inputs.repoTokenInput);
 
@@ -90,7 +94,10 @@ async function dismissReview(pullRequest: {
   const reviews = await getReviews(pullRequest);
 
   reviews.forEach((review) => {
-    if (review.user.login == "github-actions[bot]") {
+    if (
+      review.user.login == "github-actions[bot]" &&
+      review.state !== ReviewState.DISMISSED
+    ) {
       void githubClient.pulls.dismissReview({
         owner: pullRequest.owner,
         repo: pullRequest.repo,
@@ -115,7 +122,7 @@ async function getReviews(
 function hasActiveReviews(reviews: PullsListReviewsResponseData) {
   const activeBotReviews = reviews
     .filter((review) => review.user.login == "github-actions[bot]")
-    .filter((review) => review.state !== "DISMISSED");
+    .filter((review) => review.state !== ReviewState.DISMISSED);
 
   return activeBotReviews.length > 0;
 }
