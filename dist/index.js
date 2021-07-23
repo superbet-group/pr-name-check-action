@@ -26,6 +26,10 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__webpack_require__(186));
 const github = __importStar(__webpack_require__(438));
+var ReviewState;
+(function (ReviewState) {
+    ReviewState["DISMISSED"] = "DISMISSED";
+})(ReviewState || (ReviewState = {}));
 const inputs = getInputs();
 const githubClient = github.getOctokit(inputs.repoTokenInput);
 function run() {
@@ -50,7 +54,7 @@ function run() {
         core.debug(`Title: ${title}`);
         const titleMatchesRegex = titleRegex.test(title);
         if (!titleMatchesRegex) {
-            createReview(comment, pullRequest);
+            yield createReview(comment, pullRequest);
         }
         else {
             yield dismissReview(pullRequest);
@@ -76,23 +80,28 @@ function getInputs() {
     };
 }
 function createReview(comment, pullRequest) {
-    void githubClient.pulls.createReview({
-        owner: pullRequest.owner,
-        repo: pullRequest.repo,
-        pull_number: pullRequest.number,
-        body: comment,
-        event: "REQUEST_CHANGES",
+    return __awaiter(this, void 0, void 0, function* () {
+        const reviews = yield getReviews(pullRequest);
+        if (hasActiveReviews(reviews)) {
+            core.debug(`Recently commented!`);
+            return;
+        }
+        core.debug(`Adding a new review`);
+        void githubClient.pulls.createReview({
+            owner: pullRequest.owner,
+            repo: pullRequest.repo,
+            pull_number: pullRequest.number,
+            body: comment,
+            event: "REQUEST_CHANGES",
+        });
     });
 }
 function dismissReview(pullRequest) {
     return __awaiter(this, void 0, void 0, function* () {
-        const reviews = yield githubClient.pulls.listReviews({
-            owner: pullRequest.owner,
-            repo: pullRequest.repo,
-            pull_number: pullRequest.number,
-        });
-        reviews.data.forEach((review) => {
-            if (review.user.login == "github-actions[bot]") {
+        const reviews = yield getReviews(pullRequest);
+        reviews.forEach((review) => {
+            if (review.user.login == "github-actions[bot]" &&
+                review.state !== ReviewState.DISMISSED) {
                 void githubClient.pulls.dismissReview({
                     owner: pullRequest.owner,
                     repo: pullRequest.repo,
@@ -103,6 +112,22 @@ function dismissReview(pullRequest) {
             }
         });
     });
+}
+function getReviews(pullRequest) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const response = yield githubClient.pulls.listReviews({
+            owner: pullRequest.owner,
+            repo: pullRequest.repo,
+            pull_number: pullRequest.number,
+        });
+        return response.data;
+    });
+}
+function hasActiveReviews(reviews) {
+    const activeBotReviews = reviews
+        .filter((review) => review.user.login == "github-actions[bot]")
+        .filter((review) => review.state !== ReviewState.DISMISSED);
+    return activeBotReviews.length > 0;
 }
 run().catch((error) => {
     core.setFailed(error);

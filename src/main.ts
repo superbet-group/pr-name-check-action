@@ -1,5 +1,16 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { PullsListReviewsResponseData } from "@octokit/types/dist-types/generated/Endpoints";
+
+interface PullRequest {
+  owner: string;
+  repo: string;
+  number: number;
+}
+
+enum ReviewState {
+  DISMISSED = "DISMISSED",
+}
 
 const inputs = getInputs();
 const githubClient = github.getOctokit(inputs.repoTokenInput);
@@ -32,7 +43,7 @@ async function run(): Promise<void> {
 
   const titleMatchesRegex: boolean = titleRegex.test(title);
   if (!titleMatchesRegex) {
-    createReview(comment, pullRequest);
+    await createReview(comment, pullRequest);
   } else {
     await dismissReview(pullRequest);
   }
@@ -59,10 +70,13 @@ function getInputs() {
   };
 }
 
-function createReview(
-  comment: string,
-  pullRequest: { owner: string; repo: string; number: number }
-) {
+async function createReview(comment: string, pullRequest: PullRequest) {
+  const reviews = await getReviews(pullRequest);
+  if (hasActiveReviews(reviews)) {
+    core.debug(`Recently commented!`);
+    return;
+  }
+  core.debug(`Adding a new review`);
   void githubClient.pulls.createReview({
     owner: pullRequest.owner,
     repo: pullRequest.repo,
@@ -77,14 +91,13 @@ async function dismissReview(pullRequest: {
   repo: string;
   number: number;
 }) {
-  const reviews = await githubClient.pulls.listReviews({
-    owner: pullRequest.owner,
-    repo: pullRequest.repo,
-    pull_number: pullRequest.number,
-  });
+  const reviews = await getReviews(pullRequest);
 
-  reviews.data.forEach((review) => {
-    if (review.user.login == "github-actions[bot]") {
+  reviews.forEach((review) => {
+    if (
+      review.user.login == "github-actions[bot]" &&
+      review.state !== ReviewState.DISMISSED
+    ) {
       void githubClient.pulls.dismissReview({
         owner: pullRequest.owner,
         repo: pullRequest.repo,
@@ -94,6 +107,24 @@ async function dismissReview(pullRequest: {
       });
     }
   });
+}
+
+async function getReviews(
+  pullRequest: PullRequest
+): Promise<PullsListReviewsResponseData> {
+  const response = await githubClient.pulls.listReviews({
+    owner: pullRequest.owner,
+    repo: pullRequest.repo,
+    pull_number: pullRequest.number,
+  });
+  return response.data;
+}
+function hasActiveReviews(reviews: PullsListReviewsResponseData) {
+  const activeBotReviews = reviews
+    .filter((review) => review.user.login == "github-actions[bot]")
+    .filter((review) => review.state !== ReviewState.DISMISSED);
+
+  return activeBotReviews.length > 0;
 }
 
 run().catch((error) => {
