@@ -1,5 +1,12 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
+import { PullsListReviewsResponseData } from '@octokit/types/dist-types/generated/Endpoints';
+
+interface PullRequest {
+  owner: string;
+  repo: string;
+  number: number;
+}
 
 const inputs = getInputs();
 const githubClient = github.getOctokit(inputs.repoTokenInput);
@@ -32,7 +39,7 @@ async function run(): Promise<void> {
 
   const titleMatchesRegex: boolean = titleRegex.test(title);
   if (!titleMatchesRegex) {
-    createReview(comment, pullRequest);
+    await createReview(comment, pullRequest);
   } else {
     await dismissReview(pullRequest);
   }
@@ -59,10 +66,14 @@ function getInputs() {
   };
 }
 
-function createReview(
+async function createReview(
   comment: string,
-  pullRequest: { owner: string; repo: string; number: number }
+  pullRequest: PullRequest,
 ) {
+  const reviews = await getReviews(pullRequest);
+  if (recentlyCommented(reviews)) {
+
+  }
   void githubClient.pulls.createReview({
     owner: pullRequest.owner,
     repo: pullRequest.repo,
@@ -77,13 +88,9 @@ async function dismissReview(pullRequest: {
   repo: string;
   number: number;
 }) {
-  const reviews = await githubClient.pulls.listReviews({
-    owner: pullRequest.owner,
-    repo: pullRequest.repo,
-    pull_number: pullRequest.number,
-  });
+  const reviews = await getReviews(pullRequest);
 
-  reviews.data.forEach((review) => {
+  reviews.forEach((review) => {
     if (review.user.login == "github-actions[bot]") {
       void githubClient.pulls.dismissReview({
         owner: pullRequest.owner,
@@ -94,6 +101,19 @@ async function dismissReview(pullRequest: {
       });
     }
   });
+}
+
+async function getReviews(pullRequest: PullRequest): Promise<PullsListReviewsResponseData> {
+  const response = await githubClient.pulls.listReviews({
+    owner: pullRequest.owner,
+    repo: pullRequest.repo,
+    pull_number: pullRequest.number,
+  });
+  return response.data;
+}
+function recentlyCommented(reviews: PullsListReviewsResponseData) {
+  console.log(reviews);
+  return false;
 }
 
 run().catch((error) => {
