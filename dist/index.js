@@ -120,9 +120,8 @@ function getReviews(pullRequest) {
 }
 function recentlyCommented(reviews) {
     const botReviews = reviews.filter((review) => review.user.login == "github-actions[bot]");
-    core.debug(`Bot reviews count: ${botReviews.length}`);
     botReviews.forEach((review) => {
-        core.debug(`Found review ${review.body}`);
+        core.debug(`Found review ${JSON.stringify(review)}`);
     });
     return false;
 }
