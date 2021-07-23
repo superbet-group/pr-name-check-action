@@ -112,7 +112,9 @@ async function getReviews(pullRequest: PullRequest): Promise<PullsListReviewsRes
   return response.data;
 }
 function recentlyCommented(reviews: PullsListReviewsResponseData) {
-  console.log(reviews);
+  reviews.forEach(review => {
+    core.debug(`Found review ${review.body}`);
+  });
   return false;
 }
 
