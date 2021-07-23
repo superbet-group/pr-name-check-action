@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { PullsListReviewsResponseData } from '@octokit/types/dist-types/generated/Endpoints';
+import { PullsListReviewsResponseData } from "@octokit/types/dist-types/generated/Endpoints";
 
 interface PullRequest {
   owner: string;
@@ -66,10 +66,7 @@ function getInputs() {
   };
 }
 
-async function createReview(
-  comment: string,
-  pullRequest: PullRequest,
-) {
+async function createReview(comment: string, pullRequest: PullRequest) {
   const reviews = await getReviews(pullRequest);
   if (recentlyCommented(reviews)) {
     core.debug(`Recently commented!`);
@@ -105,7 +102,9 @@ async function dismissReview(pullRequest: {
   });
 }
 
-async function getReviews(pullRequest: PullRequest): Promise<PullsListReviewsResponseData> {
+async function getReviews(
+  pullRequest: PullRequest
+): Promise<PullsListReviewsResponseData> {
   const response = await githubClient.pulls.listReviews({
     owner: pullRequest.owner,
     repo: pullRequest.repo,
@@ -114,12 +113,13 @@ async function getReviews(pullRequest: PullRequest): Promise<PullsListReviewsRes
   return response.data;
 }
 function recentlyCommented(reviews: PullsListReviewsResponseData) {
-  const botReviews = reviews
-      .filter(review => review.user.login == "github-actions[bot]");
+  const botReviews = reviews.filter(
+    (review) => review.user.login == "github-actions[bot]"
+  );
 
   core.debug(`Bot reviews count: ${botReviews.length}`);
 
-  botReviews.forEach(review => {
+  botReviews.forEach((review) => {
     core.debug(`Found review ${review.body}`);
   });
   return false;
