@@ -34,7 +34,7 @@ jobs:
   pr-lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: superbet-group/pr-name-check-action@main
+      - uses: superbet-group/pr-name-check-action@v1.0.0
         with:
           title-projects: SW|SGP
           title-fallback: no-ticket
